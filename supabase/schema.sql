@@ -169,13 +169,13 @@ CREATE TABLE IF NOT EXISTS integrations (
 CREATE INDEX IF NOT EXISTS idx_products_store_id ON products(store_id);
 CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+CREATE UNIQUE INDEX IF NOT EXISTS products_store_sku_unique ON products (store_id, sku) WHERE sku IS NOT NULL AND sku <> '';
 CREATE INDEX IF NOT EXISTS idx_quote_requests_store_id ON quote_requests(store_id);
 CREATE INDEX IF NOT EXISTS idx_quote_requests_buyer_id ON quote_requests(buyer_user_id);
 
 -- ==========================================
 -- 4. ROW LEVEL SECURITY (RLS)
 -- ==========================================
-
 ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_owners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE buyer_users ENABLE ROW LEVEL SECURITY;
