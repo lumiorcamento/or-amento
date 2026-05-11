@@ -101,9 +101,10 @@ export default function QuoteAssistant() {
     async function handleLoadingDone() {
         try {
             const result = await recommendationService.generateRecommendation({
+                storeId: store.id,
                 prompt,
-                products,
-                buyerProfile: { ...buyer, profile: buyerProfile }
+                buyerProfile: { ...buyer, profile: buyerProfile },
+                mode: 'recommended'
             });
             setRecommendation(result);
             setItems(result.items.map(p => ({ ...p, quantity: p.quantity || 1 })));

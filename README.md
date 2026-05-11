@@ -33,10 +33,6 @@ npm install
 4. No Supabase, vá em **SQL Editor** e execute o conteúdo do arquivo `supabase/schema.sql` para criar as tabelas e políticas de segurança (RLS).
 5. (Opcional) Execute o conteúdo de `supabase/seed_demo.sql` para popular a loja de demonstração.
 
-### 4. Rodar o projeto
-```bash
-npm run dev
-```
 
 ---
 
