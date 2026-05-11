@@ -496,3 +496,38 @@ CREATE POLICY "Owners can manage their sync logs" ON integration_sync_logs
 
 CREATE POLICY "Owners can manage their oauth states" ON integration_oauth_states
     FOR ALL USING (is_store_owner(store_id));
+
+-- ==========================================
+-- 8. NUVEMSHOP INTEGRATION (Phase 8)
+-- ==========================================
+
+-- Índice único para Nuvemshop Store ID
+CREATE UNIQUE INDEX IF NOT EXISTS stores_nuvemshop_store_id_unique ON stores (nuvemshop_store_id) 
+WHERE nuvemshop_store_id IS NOT NULL AND nuvemshop_store_id <> '';
+
+-- Tabela para configurações do botão na vitrine
+CREATE TABLE IF NOT EXISTS storefront_quote_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID REFERENCES stores(id) ON DELETE CASCADE UNIQUE,
+    enabled BOOLEAN DEFAULT FALSE,
+    button_text TEXT DEFAULT 'Criar orçamento personalizado com IA',
+    button_subtitle TEXT,
+    button_position TEXT DEFAULT 'floating',
+    button_color TEXT,
+    show_on_home BOOLEAN DEFAULT TRUE,
+    show_on_product_pages BOOLEAN DEFAULT TRUE,
+    show_on_cart BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT valid_position CHECK (button_position IN ('floating', 'product_area', 'bottom_bar'))
+);
+
+-- Habilitar RLS
+ALTER TABLE storefront_quote_settings ENABLE ROW LEVEL SECURITY;
+
+-- Políticas RLS
+CREATE POLICY "Owners can manage their storefront settings" ON storefront_quote_settings
+    FOR ALL USING (is_store_owner(store_id));
+
+CREATE POLICY "Public can view active storefront settings" ON storefront_quote_settings
+    FOR SELECT USING (enabled = TRUE);

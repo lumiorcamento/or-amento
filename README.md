@@ -17,6 +17,7 @@ Sistema de orçamento personalizado com IA para clientes de lojas online, focado
 - Node.js instalado
 - Conta no Supabase
 - Conta no Bling (para integração de catálogo)
+- Conta na Nuvemshop (para integração de vitrine)
 
 ### 2. Instalação
 ```bash
@@ -72,7 +73,28 @@ Automatize o catálogo sincronizando produtos do Bling.
    supabase functions deploy bling-disconnect
    ```
 
-### 6. Rodar o projeto
+### 6. Integração Nuvemshop (Fase 8)
+Instale o app e adicione o botão de orçamento na vitrine.
+
+1. Crie um aplicativo no portal de parceiros da Nuvemshop.
+2. Configure o Redirect URI para: `http://localhost:5173/lojista/conectar/nuvemshop/callback`.
+3. Configure as Secrets no Supabase:
+   ```bash
+   supabase secrets set NUVEMSHOP_CLIENT_ID=...
+   supabase secrets set NUVEMSHOP_CLIENT_SECRET=...
+   supabase secrets set NUVEMSHOP_REDIRECT_URI=...
+   supabase secrets set PUBLIC_APP_URL=http://localhost:5173
+   ```
+4. Faça o deploy das Edge Functions:
+   ```bash
+   supabase functions deploy nuvemshop-oauth-start
+   supabase functions deploy nuvemshop-oauth-callback
+   supabase functions deploy nuvemshop-install-script
+   supabase functions deploy nuvemshop-disconnect
+   supabase functions deploy nuvemshop-storefront-config
+   ```
+
+### 7. Rodar o projeto
 ```bash
 npm run dev
 ```

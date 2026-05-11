@@ -26,6 +26,7 @@ import StoreConfig from '@/pages/store/StoreConfig';
 import StoreConnect from '@/pages/store/StoreConnect';
 import StoreResults from '@/pages/store/StoreResults';
 import BlingCallback from '@/pages/store/BlingCallback';
+import NuvemshopCallback from '@/pages/store/NuvemshopCallback';
 
 const AuthenticatedApp = () => {
     const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
                     <Route path="/lojista/configurar" element={<StoreConfig />} />
                     <Route path="/lojista/conectar" element={<StoreConnect />} />
                     <Route path="/lojista/conectar/bling/callback" element={<BlingCallback />} />
+                    <Route path="/lojista/conectar/nuvemshop/callback" element={<NuvemshopCallback />} />
                     <Route path="/lojista/resultados" element={<StoreResults />} />
                 </Route>
             </Route>
