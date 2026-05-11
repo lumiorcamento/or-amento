@@ -1,4 +1,4 @@
-#env
+# env
 .env
 .env.*
 
@@ -27,5 +27,9 @@ dist-ssr
 *.sln
 *.sw?
 
-.env
+# Supabase
+supabase/.temp/
+supabase/functions/.well-known/
+
+# Vite
 .vite
