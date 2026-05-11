@@ -1,0 +1,43 @@
+{
+    "name": "AIRequest",
+    "type": "object",
+    "properties": {
+        "organization_id": {
+            "type": "string"
+        },
+        "original_prompt": {
+            "type": "string",
+            "description": "Pedido original do lojista"
+        },
+        "detected_intent": {
+            "type": "string"
+        },
+        "detected_audience": {
+            "type": "string"
+        },
+        "detected_age_range": {
+            "type": "string"
+        },
+        "detected_budget": {
+            "type": "number"
+        },
+        "detected_occasion": {
+            "type": "string"
+        },
+        "detected_preferences": {
+            "type": "string"
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "processing",
+                "done",
+                "error"
+            ],
+            "default": "processing"
+        }
+    },
+    "required": [
+        "original_prompt"
+    ]
+}

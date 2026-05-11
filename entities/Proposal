@@ -1,0 +1,107 @@
+{
+    "name": "Proposal",
+    "type": "object",
+    "properties": {
+        "organization_id": {
+            "type": "string"
+        },
+        "final_customer_id": {
+            "type": "string"
+        },
+        "ai_request_id": {
+            "type": "string"
+        },
+        "title": {
+            "type": "string",
+            "description": "T\u00edtulo da proposta"
+        },
+        "original_prompt": {
+            "type": "string",
+            "description": "Pedido original"
+        },
+        "summary": {
+            "type": "string",
+            "description": "Resumo da IA"
+        },
+        "commercial_text": {
+            "type": "string",
+            "description": "Texto comercial"
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "ready",
+                "sent",
+                "approved",
+                "rejected",
+                "expired"
+            ],
+            "default": "draft"
+        },
+        "subtotal": {
+            "type": "number",
+            "default": 0
+        },
+        "discount": {
+            "type": "number",
+            "default": 0
+        },
+        "total": {
+            "type": "number",
+            "default": 0
+        },
+        "validity_days": {
+            "type": "number",
+            "default": 15
+        },
+        "notes": {
+            "type": "string"
+        },
+        "items": {
+            "type": "array",
+            "description": "Itens da proposta",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "product_id": {
+                        "type": "string"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "product_image": {
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "type": "number"
+                    },
+                    "unit_price": {
+                        "type": "number"
+                    },
+                    "total": {
+                        "type": "number"
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "compatibility_score": {
+                        "type": "number"
+                    }
+                }
+            }
+        },
+        "final_customer_name": {
+            "type": "string"
+        },
+        "final_customer_phone": {
+            "type": "string"
+        },
+        "final_customer_email": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "title"
+    ]
+}

@@ -1,0 +1,44 @@
+{
+    "name": "Customer",
+    "type": "object",
+    "properties": {
+        "organization_id": {
+            "type": "string",
+            "description": "ID da organiza\u00e7\u00e3o (tenant)"
+        },
+        "name": {
+            "type": "string",
+            "description": "Nome do cliente"
+        },
+        "email": {
+            "type": "string",
+            "description": "E-mail do cliente"
+        },
+        "phone": {
+            "type": "string",
+            "description": "Telefone do cliente"
+        },
+        "document": {
+            "type": "string",
+            "description": "CPF ou CNPJ"
+        },
+        "company_name": {
+            "type": "string",
+            "description": "Nome da empresa do cliente"
+        },
+        "notes": {
+            "type": "string",
+            "description": "Observa\u00e7\u00f5es"
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Tags do cliente"
+        }
+    },
+    "required": [
+        "name"
+    ]
+}

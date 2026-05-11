@@ -1,0 +1,49 @@
+{
+  "name": "Organization",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome da loja"
+    },
+    "segment": {
+      "type": "string",
+      "description": "Segmento de atua\u00e7\u00e3o"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "URL do logotipo"
+    },
+    "primary_color": {
+      "type": "string",
+      "description": "Cor principal"
+    },
+    "proposal_tone": {
+      "type": "string",
+      "enum": [
+        "direto",
+        "consultivo",
+        "elegante",
+        "tecnico",
+        "descontraido"
+      ],
+      "default": "consultivo",
+      "description": "Tom das propostas"
+    },
+    "whatsapp": {
+      "type": "string",
+      "description": "WhatsApp"
+    },
+    "email": {
+      "type": "string",
+      "description": "E-mail"
+    },
+    "onboarding_done": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

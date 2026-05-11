@@ -1,0 +1,28 @@
+{
+    "name": "FinalCustomer",
+    "type": "object",
+    "properties": {
+        "organization_id": {
+            "type": "string"
+        },
+        "name": {
+            "type": "string",
+            "description": "Nome do cliente"
+        },
+        "phone": {
+            "type": "string",
+            "description": "WhatsApp/Telefone"
+        },
+        "email": {
+            "type": "string",
+            "description": "E-mail"
+        },
+        "notes": {
+            "type": "string",
+            "description": "Observa\u00e7\u00f5es"
+        }
+    },
+    "required": [
+        "name"
+    ]
+}

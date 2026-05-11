@@ -1,0 +1,57 @@
+{
+  "name": "Briefing",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "ID da organiza\u00e7\u00e3o (tenant)"
+    },
+    "customer_id": {
+      "type": "string",
+      "description": "ID do cliente"
+    },
+    "title": {
+      "type": "string",
+      "description": "T\u00edtulo do briefing"
+    },
+    "objective": {
+      "type": "string",
+      "description": "Objetivo da compra"
+    },
+    "customer_profile": {
+      "type": "string",
+      "description": "Perfil do cliente"
+    },
+    "budget_range": {
+      "type": "string",
+      "description": "Faixa de or\u00e7amento"
+    },
+    "preferences": {
+      "type": "string",
+      "description": "Prefer\u00eancias"
+    },
+    "restrictions": {
+      "type": "string",
+      "description": "Restri\u00e7\u00f5es"
+    },
+    "urgency": {
+      "type": "string",
+      "enum": [
+        "baixa",
+        "media",
+        "alta",
+        "urgente"
+      ],
+      "default": "media",
+      "description": "N\u00edvel de urg\u00eancia"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es adicionais"
+    }
+  },
+  "required": [
+    "title",
+    "customer_id"
+  ]
+}

@@ -1,0 +1,92 @@
+{
+    "name": "Product",
+    "type": "object",
+    "properties": {
+        "organization_id": {
+            "type": "string"
+        },
+        "name": {
+            "type": "string",
+            "description": "Nome do produto"
+        },
+        "sku": {
+            "type": "string",
+            "description": "SKU"
+        },
+        "description": {
+            "type": "string",
+            "description": "Descri\u00e7\u00e3o"
+        },
+        "category": {
+            "type": "string",
+            "description": "Categoria"
+        },
+        "price": {
+            "type": "number",
+            "description": "Pre\u00e7o de venda"
+        },
+        "cost_price": {
+            "type": "number",
+            "description": "Pre\u00e7o de custo"
+        },
+        "stock_quantity": {
+            "type": "number",
+            "default": 0
+        },
+        "image_url": {
+            "type": "string",
+            "description": "URL da imagem"
+        },
+        "source": {
+            "type": "string",
+            "enum": [
+                "demo",
+                "manual",
+                "bling",
+                "nuvemshop",
+                "csv"
+            ],
+            "default": "demo"
+        },
+        "active": {
+            "type": "boolean",
+            "default": true
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "target_audience": {
+            "type": "string"
+        },
+        "age_range": {
+            "type": "string"
+        },
+        "occasion": {
+            "type": "string"
+        },
+        "benefits": {
+            "type": "string"
+        },
+        "ai_readiness_status": {
+            "type": "string",
+            "enum": [
+                "ready",
+                "missing_description",
+                "missing_category",
+                "missing_tags",
+                "out_of_stock"
+            ],
+            "default": "ready"
+        },
+        "last_synced_at": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "name",
+        "price"
+    ]
+}

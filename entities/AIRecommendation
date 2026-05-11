@@ -1,0 +1,64 @@
+{
+    "name": "AIRecommendation",
+    "type": "object",
+    "properties": {
+        "organization_id": {
+            "type": "string",
+            "description": "ID da organiza\u00e7\u00e3o (tenant)"
+        },
+        "quote_id": {
+            "type": "string",
+            "description": "ID do or\u00e7amento"
+        },
+        "briefing_id": {
+            "type": "string",
+            "description": "ID do briefing"
+        },
+        "summary": {
+            "type": "string",
+            "description": "Resumo da recomenda\u00e7\u00e3o"
+        },
+        "commercial_text": {
+            "type": "string",
+            "description": "Texto comercial sugerido"
+        },
+        "recommended_items": {
+            "type": "array",
+            "description": "Itens recomendados pela IA",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "product_id": {
+                        "type": "string"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "type": "number"
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "generated",
+                "accepted",
+                "rejected",
+                "regenerated"
+            ],
+            "default": "generated",
+            "description": "Status da recomenda\u00e7\u00e3o"
+        }
+    },
+    "required": [
+        "summary"
+    ]
+}

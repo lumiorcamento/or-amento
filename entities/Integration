@@ -1,0 +1,40 @@
+{
+    "name": "Integration",
+    "type": "object",
+    "properties": {
+        "organization_id": {
+            "type": "string"
+        },
+        "provider": {
+            "type": "string",
+            "enum": [
+                "nuvemshop",
+                "bling",
+                "ai",
+                "pdf",
+                "whatsapp"
+            ],
+            "description": "Provedor"
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "not_connected",
+                "connected",
+                "syncing",
+                "error",
+                "simulated"
+            ],
+            "default": "not_connected"
+        },
+        "last_sync_at": {
+            "type": "string"
+        },
+        "metadata": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "provider"
+    ]
+}
