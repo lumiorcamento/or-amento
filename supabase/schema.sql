@@ -443,3 +443,56 @@ BEGIN
     RETURN v_result;
 END;
 $$;
+
+-- ==========================================
+-- 7. INTEGRATION EXTENSIONS (Phase 7)
+-- ==========================================
+
+-- Novo índice único para integrações
+CREATE UNIQUE INDEX IF NOT EXISTS integrations_store_provider_unique ON integrations (store_id, provider);
+
+-- Novo índice único para produtos sincronizados
+CREATE UNIQUE INDEX IF NOT EXISTS products_store_source_external_id_unique ON products (store_id, source, external_id) 
+WHERE external_id IS NOT NULL AND external_id <> '';
+
+-- Tabela para logs de sincronização
+CREATE TABLE IF NOT EXISTS integration_sync_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID REFERENCES stores(id) ON DELETE CASCADE,
+    integration_id UUID REFERENCES integrations(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TIMESTAMPTZ DEFAULT now(),
+    finished_at TIMESTAMPTZ,
+    products_found INTEGER DEFAULT 0,
+    products_created INTEGER DEFAULT 0,
+    products_updated INTEGER DEFAULT 0,
+    products_skipped INTEGER DEFAULT 0,
+    error_message TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT valid_status CHECK (status IN ('running', 'success', 'partial_success', 'error'))
+);
+
+-- Tabela para proteção de State OAuth
+CREATE TABLE IF NOT EXISTS integration_oauth_states (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID REFERENCES stores(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    state TEXT UNIQUE NOT NULL,
+    created_by UUID REFERENCES auth.users(id),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Habilitar RLS
+ALTER TABLE integration_sync_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE integration_oauth_states ENABLE ROW LEVEL SECURITY;
+
+-- Políticas RLS
+CREATE POLICY "Owners can manage their sync logs" ON integration_sync_logs
+    FOR ALL USING (is_store_owner(store_id));
+
+CREATE POLICY "Owners can manage their oauth states" ON integration_oauth_states
+    FOR ALL USING (is_store_owner(store_id));

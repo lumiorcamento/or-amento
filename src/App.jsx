@@ -25,6 +25,7 @@ import StoreProducts from '@/pages/store/StoreProducts';
 import StoreConfig from '@/pages/store/StoreConfig';
 import StoreConnect from '@/pages/store/StoreConnect';
 import StoreResults from '@/pages/store/StoreResults';
+import BlingCallback from '@/pages/store/BlingCallback';
 
 const AuthenticatedApp = () => {
     const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
                     <Route path="/lojista/produtos" element={<StoreProducts />} />
                     <Route path="/lojista/configurar" element={<StoreConfig />} />
                     <Route path="/lojista/conectar" element={<StoreConnect />} />
+                    <Route path="/lojista/conectar/bling/callback" element={<BlingCallback />} />
                     <Route path="/lojista/resultados" element={<StoreResults />} />
                 </Route>
             </Route>

@@ -158,5 +158,110 @@ export const productService = {
 
     if (error) throw error;
     return data;
+  },
+
+  // --- BLING INTEGRATION METHODS ---
+
+  /**
+   * Initiates Bling OAuth flow by creating a secure state
+   */
+  async initiateBlingConnection(storeId) {
+    if (!isSupabaseConfigured()) return '#';
+
+    const state = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
+
+    const { error } = await supabase
+      .from('integration_oauth_states')
+      .insert({
+        store_id: storeId,
+        provider: 'bling',
+        state,
+        expires_at: expiresAt
+      });
+
+    if (error) throw error;
+
+    const clientId = import.meta.env.VITE_BLING_CLIENT_ID;
+    const redirectUri = encodeURIComponent(window.location.origin + '/lojista/conectar/bling/callback');
+    
+    return `https://www.bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=${clientId}&state=${state}&redirect_uri=${redirectUri}`;
+  },
+
+  /**
+   * Finalizes Bling connection via Edge Function
+   */
+  async connectBlingCallback(storeId, code, state) {
+    if (!isSupabaseConfigured()) return { success: true };
+
+    const { data, error } = await supabase.functions.invoke('bling-oauth-callback', {
+      body: { storeId, code, state }
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Triggers product sync from Bling
+   */
+  async syncBlingProducts(storeId) {
+    if (!isSupabaseConfigured()) return { success: true, summary: { found: 10, created: 5, updated: 5, errored: 0 } };
+
+    const { data, error } = await supabase.functions.invoke('bling-sync-products', {
+      body: { storeId }
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Disconnects Bling integration
+   */
+  async disconnectBling(storeId) {
+    if (!isSupabaseConfigured()) return { success: true };
+
+    const { data, error } = await supabase.functions.invoke('bling-disconnect', {
+      body: { storeId }
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Gets integration status
+   */
+  async getIntegrationStatus(storeId, provider = 'bling') {
+    if (!isSupabaseConfigured()) return { provider, status: 'not_connected' };
+
+    const { data, error } = await supabase
+      .from('integrations')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('provider', provider)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  /**
+   * Gets sync logs
+   */
+  async getSyncLogs(storeId, provider = 'bling') {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data, error } = await supabase
+      .from('integration_sync_logs')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('provider', provider)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+    return data;
   }
 };
