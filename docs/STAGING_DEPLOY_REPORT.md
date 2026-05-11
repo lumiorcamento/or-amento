@@ -22,8 +22,8 @@
 | `NUVEMSHOP_REDIRECT_URI` | ✅ Configurado |
 | `BLING_CLIENT_ID` | ⚠️ Pendente |
 | `BLING_CLIENT_SECRET` | ⚠️ Pendente |
-| `NUVEMSHOP_CLIENT_ID` | ⚠️ Pendente |
-| `NUVEMSHOP_CLIENT_SECRET` | ⚠️ Pendente |
+| `NUVEMSHOP_CLIENT_ID` | ✅ Configurado |
+| `NUVEMSHOP_CLIENT_SECRET` | ✅ Configurado |
 
 ## 🧪 Testes de Validação
 - [x] **Banco de Dados**: Tabelas e RPCs criados via migration.
