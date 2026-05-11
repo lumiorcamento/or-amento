@@ -1,248 +1,201 @@
-import React, { useState } from 'react';
-import { DEMO_QUOTE_REQUESTS } from '@/lib/demoData';
-import { DEMO_BUYERS } from '@/lib/buyerData';
-import { MessageSquare, Check, User, RefreshCw, Phone } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React, { useState, useEffect } from 'react';
+import { useStoreOwner } from '@/lib/StoreOwnerContext';
+import { quoteService } from '@/services';
+import { 
+    MessageSquare, 
+    Loader2, Search, ChevronRight, ShoppingBag,
+    Clock
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { toast } from 'sonner';
 
-// Map demo requests to buyers for history display
-const BUYER_MAP = { qr1: 'buyer1', qr3: 'buyer2', qr4: 'buyer1', qr5: 'buyer2' };
+const STATUS_LABELS = { 
+    sent: 'Novo', 
+    in_review: 'Em análise', 
+    answered: 'Respondido', 
+    approved: 'Aprovado', 
+    canceled: 'Cancelado',
+    lost: 'Perdido'
+};
 
-const STATUS_LABELS = { new: 'Novo', in_review: 'Em análise', answered: 'Respondido', approved: 'Aprovado', lost: 'Perdido' };
 const STATUS_COLORS = {
-    new: 'bg-blue-100 text-blue-700',
+    sent: 'bg-blue-100 text-blue-700',
     in_review: 'bg-amber-100 text-amber-700',
     answered: 'bg-purple-100 text-purple-700',
     approved: 'bg-green-100 text-green-700',
+    canceled: 'bg-red-100 text-red-700',
     lost: 'bg-gray-100 text-gray-500',
 };
 
-function getBuyerSummary(requestId) {
-    const buyerId = BUYER_MAP[requestId];
-    return buyerId ? DEMO_BUYERS.find(b => b.id === buyerId) : null;
-}
-
 export default function StoreRequests() {
-    const [selected, setSelected] = useState(null);
-    const [statuses, setStatuses] = useState({});
+    const { currentStore } = useStoreOwner();
+    const navigate = useNavigate();
+    
+    const [requests, setRequests] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
 
-    const requests = DEMO_QUOTE_REQUESTS.map(r => ({ ...r, status: statuses[r.id] || r.status }));
+    useEffect(() => {
+        if (currentStore) {
+            loadRequests();
+        }
+    }, [currentStore]);
+
+    async function loadRequests() {
+        setIsLoading(true);
+        try {
+            const data = await quoteService.getStoreQuoteRequests(currentStore.id);
+            setRequests(data);
+        } catch (err) {
+            console.error(err);
+            toast.error("Erro ao carregar solicitações.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const filteredRequests = requests.filter(r => {
+        const matchesSearch = 
+            r.customer_contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            r.id.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
 
     function openWhatsApp(req) {
-        const buyer = getBuyerSummary(req.id);
-        const phone = req.customerContact?.replace(/\D/g, '') || '';
-        const items = req.items.map(i => `• ${i.product_name} x${i.quantity} — R$ ${i.subtotal.toFixed(2)}`).join('\n');
+        if (!req.customer_contact_phone) {
+            toast.info("Este cliente não forneceu número de WhatsApp.");
+            return;
+        }
+        
+        const phone = req.customer_contact_phone.replace(/\D/g, '');
         const text = encodeURIComponent(
-            `Olá, ${req.customerName}! 👋 Recebemos sua solicitação de orçamento na nossa loja.\n\n*Produtos sugeridos:*\n${items}\n\n*Total estimado: R$ ${req.estimatedTotal.toFixed(2)}*\n\n_Este é um orçamento estimado. Confirmaremos disponibilidade, valores finais e condições de entrega._\n\nDeseja prosseguir?`
+            `Olá, ${req.customer_contact_name}! 👋 Recebemos sua solicitação de orçamento #${req.id.substring(0, 5).toUpperCase()} na ${currentStore.name}.\n\nPodemos conversar sobre os produtos que você precisa?`
         );
         window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
     }
 
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-green-700 animate-spin mb-4" />
+                <p className="text-gray-500 text-sm font-medium">Carregando solicitações...</p>
+            </div>
+        );
+    }
+
     return (
-        <div>
-            <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Solicitações recebidas</h2>
-                <p className="text-sm text-gray-500 mt-0.5">{requests.length} solicitações de orçamento</p>
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Solicitações recebidas</h2>
+                    <p className="text-sm text-gray-500 mt-1">Gerencie os orçamentos criados pelo assistente de IA.</p>
+                </div>
+                {!isSupabaseConfigured() && (
+                    <span className="self-start text-[10px] bg-amber-100 text-amber-700 font-bold px-3 py-1 rounded-full border border-amber-200">MODO DEMO ATIVO</span>
+                )}
             </div>
 
-            {/* Mobile cards */}
-            <div className="space-y-3 md:hidden">
-                {requests.map(r => {
-                    const buyer = getBuyerSummary(r.id);
-                    const isRecurring = buyer && buyer.history.length > 0;
-                    return (
-                        <div key={r.id} className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-                            <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <div className="flex items-center gap-1.5 mb-0.5">
-                                        <p className="font-semibold text-gray-900 text-sm">{r.customerName}</p>
-                                        {isRecurring
-                                            ? <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><RefreshCw className="w-2.5 h-2.5" /> Recorrente</span>
-                                            : <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><User className="w-2.5 h-2.5" /> Novo</span>
-                                        }
-                                    </div>
-                                    <p className="text-xs text-gray-400">{r.customerContact}</p>
-                                </div>
-                                <div className="text-right shrink-0">
-                                    <p className="font-bold text-green-700">R$ {r.estimatedTotal.toFixed(2)}</p>
-                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[r.status]}`}>{STATUS_LABELS[r.status]}</span>
-                                </div>
-                            </div>
-                            <p className="text-xs text-gray-500 line-clamp-2">"{r.originalPrompt}"</p>
-                            <div className="flex gap-2">
-                                <button onClick={() => setSelected(r)}
-                                    className="flex-1 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 py-2 rounded-xl transition-colors">
-                                    Ver detalhes
-                                </button>
-                                <button onClick={() => openWhatsApp(r)}
-                                    className="flex-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 py-2 rounded-xl transition-colors flex items-center justify-center gap-1">
-                                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })}
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input 
+                        type="text"
+                        placeholder="Buscar por nome ou ID..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:border-green-600 transition-colors"
+                    />
+                </div>
+                <select 
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-green-600 transition-colors"
+                >
+                    <option value="all">Todos os status</option>
+                    <option value="sent">Novos</option>
+                    <option value="in_review">Em análise</option>
+                    <option value="answered">Respondidos</option>
+                    <option value="approved">Aprovados</option>
+                    <option value="lost">Perdidos</option>
+                </select>
             </div>
 
-            {/* Desktop table */}
-            <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="border-b border-gray-100 bg-gray-50">
-                            <tr>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Cliente</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Pedido</th>
-                                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Total</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Status</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-gray-500">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {requests.map(r => {
-                                const buyer = getBuyerSummary(r.id);
-                                const isRecurring = buyer && buyer.history.length > 0;
-                                return (
-                                    <tr key={r.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-1.5 mb-0.5">
-                                                <p className="font-semibold text-gray-900">{r.customerName}</p>
-                                                {isRecurring
-                                                    ? <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><RefreshCw className="w-2.5 h-2.5" /> Recorrente</span>
-                                                    : <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><User className="w-2.5 h-2.5" /> Novo</span>
-                                                }
+            {filteredRequests.length === 0 ? (
+                <div className="bg-white border border-gray-200 rounded-3xl p-12 text-center shadow-sm">
+                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <ShoppingBag className="w-8 h-8 text-gray-300" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">Nenhuma solicitação encontrada</h3>
+                    <p className="text-sm text-gray-500 mt-2 max-w-xs mx-auto">
+                        {searchTerm || statusFilter !== 'all' 
+                            ? 'Tente ajustar seus filtros para encontrar o que procura.' 
+                            : 'As solicitações criadas pelos seus clientes no assistente aparecerão aqui.'}
+                    </p>
+                </div>
+            ) : (
+                <div className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-gray-50/50 border-b border-gray-100">
+                                <tr>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Cliente</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest hidden md:table-cell">Pedido</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Total</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {filteredRequests.map((r) => (
+                                    <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => navigate(`/lojista/solicitacoes/${r.id}`)}>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-gray-900">{r.customer_contact_name}</span>
+                                                <span className="text-[10px] text-gray-400 font-mono mt-0.5">#{r.id.substring(0, 8).toUpperCase()}</span>
+                                                <span className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" /> {new Date(r.created_at).toLocaleDateString('pt-BR')}
+                                                </span>
                                             </div>
-                                            <p className="text-xs text-gray-400">{r.customerContact}</p>
-                                            {isRecurring && <p className="text-[10px] text-purple-500 mt-0.5">{buyer.history.length} orçamento{buyer.history.length !== 1 ? 's' : ''} anteriores</p>}
                                         </td>
-                                        <td className="px-4 py-3">
-                                            <p className="text-xs text-gray-600 line-clamp-2 max-w-xs">{r.originalPrompt}</p>
+                                        <td className="px-6 py-4 hidden md:table-cell">
+                                            <p className="text-xs text-gray-600 line-clamp-2 max-w-xs italic">"{r.original_prompt}"</p>
                                         </td>
-                                        <td className="px-4 py-3 text-right font-semibold text-green-700">R$ {r.estimatedTotal.toFixed(2)}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[r.status]}`}>{STATUS_LABELS[r.status]}</span>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="font-bold text-green-700">R$ {r.estimated_total.toFixed(2)}</span>
                                         </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => openWhatsApp(r)}
-                                                    className="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                                        <td className="px-6 py-4">
+                                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${STATUS_COLORS[r.status]}`}>
+                                                {STATUS_LABELS[r.status]}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                                                <button 
+                                                    onClick={() => openWhatsApp(r)}
+                                                    className="p-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors"
+                                                    title="Responder no WhatsApp"
+                                                >
+                                                    <MessageSquare className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => setSelected(r)}
-                                                    className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                                                    Ver
+                                                <button 
+                                                    onClick={() => navigate(`/lojista/solicitacoes/${r.id}`)}
+                                                    className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
+                                                >
+                                                    <ChevronRight className="w-5 h-5" />
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-
-            {/* Detail dialog */}
-            <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Solicitação — {selected?.customerName}</DialogTitle>
-                    </DialogHeader>
-                    {selected && (() => {
-                        const buyer = getBuyerSummary(selected.id);
-                        const isRecurring = buyer && buyer.history.length > 0;
-                        return (
-                            <div className="space-y-4">
-
-                                {/* Customer summary */}
-                                <div className={`rounded-xl px-4 py-3 border ${isRecurring ? 'bg-purple-50 border-purple-100' : 'bg-blue-50 border-blue-100'}`}>
-                                    <div className="flex items-center gap-1.5 mb-2">
-                                        {isRecurring
-                                            ? <><RefreshCw className="w-3.5 h-3.5 text-purple-600" /><p className="text-xs font-bold text-purple-700">Resumo do cliente — Cliente recorrente</p></>
-                                            : <><User className="w-3.5 h-3.5 text-blue-600" /><p className="text-xs font-bold text-blue-700">Resumo do cliente — Novo cliente</p></>
-                                        }
-                                    </div>
-                                    {isRecurring && buyer ? (
-                                        <div className="space-y-1">
-                                            <p className="text-xs text-purple-800">• {buyer.history.length} orçamento{buyer.history.length !== 1 ? 's' : ''} anteriores nesta loja</p>
-                                            <p className="text-xs text-purple-800">• Valor médio dos pedidos: R$ {buyer.profile.averageOrderValue}</p>
-                                            {buyer.insights.slice(0, 2).map(i => <p key={i} className="text-xs text-purple-800">• {i}</p>)}
-                                            {buyer.history[0] && <p className="text-xs text-purple-600 mt-1">Última solicitação: "{buyer.history[0].originalPrompt}"</p>}
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-blue-700">Primeira solicitação deste cliente. Boa oportunidade de fidelização.</p>
-                                    )}
-                                </div>
-
-                                {/* Original request */}
-                                <div className="bg-gray-50 rounded-xl px-4 py-3">
-                                    <p className="text-xs font-semibold text-gray-400 mb-1">Pedido do cliente</p>
-                                    <p className="text-sm text-gray-800">"{selected.originalPrompt}"</p>
-                                </div>
-
-                                {/* AI interpretation */}
-                                <div className="bg-blue-50 rounded-xl px-4 py-3">
-                                    <p className="text-xs font-semibold text-gray-400 mb-1">O que o assistente entendeu</p>
-                                    <p className="text-sm text-blue-800">{selected.interpretedNeed}</p>
-                                </div>
-
-                                {/* Items table */}
-                                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-gray-50 border-b border-gray-100">
-                                            <tr>
-                                                <th className="text-left px-4 py-2 text-xs text-gray-500">Produto</th>
-                                                <th className="text-center px-3 py-2 text-xs text-gray-500">Qtd</th>
-                                                <th className="text-right px-4 py-2 text-xs text-gray-500">Subtotal</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selected.items.map((item, i) => (
-                                                <tr key={i} className="border-b border-gray-50 last:border-0">
-                                                    <td className="px-4 py-3">
-                                                        <p className="font-medium text-gray-900">{item.product_name}</p>
-                                                        <p className="text-xs text-gray-400">{item.reason}</p>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center text-gray-700">{item.quantity}</td>
-                                                    <td className="px-4 py-3 text-right font-semibold text-green-700">R$ {item.subtotal.toFixed(2)}</td>
-                                                </tr>
-                                            ))}
-                                            <tr className="bg-gray-50">
-                                                <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-gray-700">Total estimado</td>
-                                                <td className="px-4 py-3 text-right font-bold text-green-700 text-base">R$ {selected.estimatedTotal.toFixed(2)}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {/* Contact */}
-                                <div className="flex items-center gap-2 px-1">
-                                    <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                    <span className="text-sm text-gray-600">{selected.customerContact}</span>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex flex-wrap gap-2">
-                                    <button onClick={() => openWhatsApp(selected)}
-                                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
-                                        <MessageSquare className="w-4 h-4" /> Responder no WhatsApp
-                                    </button>
-                                    <button onClick={() => { setStatuses(s => ({ ...s, [selected.id]: 'approved' })); setSelected(null); }}
-                                        className="flex items-center gap-2 border border-gray-300 hover:border-green-400 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors">
-                                        <Check className="w-4 h-4" /> Marcar como aprovado
-                                    </button>
-                                    <button onClick={() => { setStatuses(s => ({ ...s, [selected.id]: 'answered' })); setSelected(null); }}
-                                        className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2.5 rounded-xl border border-gray-200 transition-colors">
-                                        Marcar como respondido
-                                    </button>
-                                </div>
-
-                                <p className="text-xs text-gray-400 italic">
-                                    Este é um orçamento estimado. A loja confirmará disponibilidade, valores finais e condições de entrega.
-                                </p>
-                            </div>
-                        );
-                    })()}
-                </DialogContent>
-            </Dialog>
+            )}
         </div>
     );
 }

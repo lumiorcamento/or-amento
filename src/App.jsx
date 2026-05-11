@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate, Outlet } from 'react-router-dom';
@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { BuyerProvider } from '@/lib/BuyerContext';
 import { StoreProvider } from '@/lib/StoreContext';
+import { StoreOwnerProvider } from '@/lib/StoreOwnerContext';
+import { StoreOwnerProtectedRoute } from '@/components/StoreOwnerProtectedRoute';
 
 // Public customer-facing pages (NO sidebar)
 import QuoteAssistant from '@/pages/QuoteAssistant';
@@ -16,7 +18,9 @@ import BuyerLogin from '@/pages/BuyerLogin';
 
 // Store admin layout + pages (WITH sidebar)
 import StoreLayout from '@/components/layout/StoreLayout';
+import StoreLogin from '@/pages/store/StoreLogin';
 import StoreRequests from '@/pages/store/StoreRequests';
+import StoreRequestDetail from '@/pages/store/StoreRequestDetail';
 import StoreProducts from '@/pages/store/StoreProducts';
 import StoreConfig from '@/pages/store/StoreConfig';
 import StoreConnect from '@/pages/store/StoreConnect';
@@ -48,10 +52,6 @@ const AuthenticatedApp = () => {
             {/* Redirect root to demo store */}
             <Route path="/" element={<Navigate to="/s/loja-demonstracao/orcamento" replace />} />
             
-            {/* Legacy redirects */}
-            <Route path="/historico" element={<Navigate to="/s/loja-demonstracao/historico" replace />} />
-            <Route path="/preferencias" element={<Navigate to="/s/loja-demonstracao/preferencias" replace />} />
-
             {/* CUSTOMER ROUTES with Store Context */}
             <Route path="/s/:storeSlug" element={<StoreProvider><Outlet /></StoreProvider>}>
                 <Route path="orcamento" element={<QuoteAssistant />} />
@@ -61,14 +61,20 @@ const AuthenticatedApp = () => {
                 <Route index element={<Navigate to="orcamento" replace />} />
             </Route>
 
-            {/* PRIVATE: Store admin panel - with sidebar (Still using Base44 Auth for now) */}
-            <Route element={<StoreLayout />}>
-                <Route path="/lojista" element={<StoreRequests />} />
-                <Route path="/lojista/solicitacoes" element={<StoreRequests />} />
-                <Route path="/lojista/produtos" element={<StoreProducts />} />
-                <Route path="/lojista/configurar" element={<StoreConfig />} />
-                <Route path="/lojista/conectar" element={<StoreConnect />} />
-                <Route path="/lojista/resultados" element={<StoreResults />} />
+            {/* LOJISTA LOGIN (Public within merchant flow) */}
+            <Route path="/lojista/login" element={<StoreLogin />} />
+
+            {/* PRIVATE: Store admin panel - with sidebar and Supabase Auth */}
+            <Route element={<StoreOwnerProtectedRoute />}>
+                <Route element={<StoreLayout />}>
+                    <Route path="/lojista" element={<Navigate to="/lojista/solicitacoes" replace />} />
+                    <Route path="/lojista/solicitacoes" element={<StoreRequests />} />
+                    <Route path="/lojista/solicitacoes/:id" element={<StoreRequestDetail />} />
+                    <Route path="/lojista/produtos" element={<StoreProducts />} />
+                    <Route path="/lojista/configurar" element={<StoreConfig />} />
+                    <Route path="/lojista/conectar" element={<StoreConnect />} />
+                    <Route path="/lojista/resultados" element={<StoreResults />} />
+                </Route>
             </Route>
 
             <Route path="*" element={<PageNotFound />} />
@@ -80,12 +86,14 @@ function App() {
     return (
         <AuthProvider>
             <QueryClientProvider client={queryClientInstance}>
-                <BuyerProvider>
-                    <Router>
-                        <AuthenticatedApp />
-                    </Router>
-                    <Toaster />
-                </BuyerProvider>
+                <StoreOwnerProvider>
+                    <BuyerProvider>
+                        <Router>
+                            <AuthenticatedApp />
+                        </Router>
+                        <Toaster position="top-right" />
+                    </BuyerProvider>
+                </StoreOwnerProvider>
             </QueryClientProvider>
         </AuthProvider>
     );

@@ -99,5 +99,46 @@ export const buyerService = {
 
     if (error) throw error;
     return true;
+  },
+
+  /**
+   * Merchant side: Gets a summary of the buyer's activity in a specific store
+   */
+  async getBuyerStoreSummary({ storeId, buyerUserId }) {
+    if (!isSupabaseConfigured()) return null;
+
+    // Get the store-specific profile
+    const { data: profile, error: profileError } = await supabase
+      .from('buyer_store_profiles')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('buyer_user_id', buyerUserId)
+      .single();
+
+    // Get quote count and latest date
+    const { data: quotes, error: quotesError } = await supabase
+      .from('quote_requests')
+      .select('id, created_at, estimated_total, original_prompt')
+      .eq('store_id', storeId)
+      .eq('buyer_user_id', buyerUserId)
+      .order('created_at', { ascending: false });
+
+    if (profileError && profileError.code !== 'PGRST116') throw profileError;
+    if (quotesError) throw quotesError;
+
+    const totalQuotes = quotes?.length || 0;
+    
+    return {
+      profile: profile || {},
+      totalQuotes,
+      averageOrderValue: profile?.average_order_value || 0,
+      lastQuoteDate: quotes?.[0]?.created_at || null,
+      lastQuotePrompt: quotes?.[0]?.original_prompt || null,
+      isRecurringCustomer: totalQuotes > 1,
+      preferredCategories: profile?.preferred_categories || [],
+      preferredUseCases: profile?.preferred_use_cases || [],
+      commonAudience: profile?.common_audience || null,
+      notesForAI: profile?.notes_for_ai || ''
+    };
   }
 };

@@ -22,7 +22,7 @@ export const quoteService = {
       p_store_id: payload.storeId,
       p_original_prompt: payload.originalPrompt,
       p_interpreted_need: payload.interpretedNeed || {},
-      p_items: payload.items, // productId, quantity, reason, personalizedReason
+      p_items: payload.items, 
       p_customer_contact_name: payload.contact.name,
       p_customer_contact_email: payload.contact.email,
       p_customer_contact_phone: payload.contact.phone,
@@ -97,10 +97,52 @@ export const quoteService = {
       .from('quote_requests')
       .select(`
         *,
-        buyer_users (name, email, phone)
+        buyer_users (id, name, email, phone)
       `)
       .eq('store_id', storeId)
       .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Merchant side: Gets a specific quote request for a store with all details
+   */
+  async getStoreQuoteRequestById({ storeId, quoteId }) {
+    if (!isSupabaseConfigured()) return null;
+
+    const { data, error } = await supabase
+      .from('quote_requests')
+      .select(`
+        *,
+        buyer_users (*),
+        quote_items (
+          *,
+          products (*)
+        )
+      `)
+      .eq('id', quoteId)
+      .eq('store_id', storeId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Merchant side: Updates quote status
+   */
+  async updateQuoteStatus({ storeId, quoteId, status }) {
+    if (!isSupabaseConfigured()) return true;
+
+    const { data, error } = await supabase
+      .from('quote_requests')
+      .update({ status, updated_at: new Date() })
+      .eq('id', quoteId)
+      .eq('store_id', storeId)
+      .select()
+      .single();
 
     if (error) throw error;
     return data;
