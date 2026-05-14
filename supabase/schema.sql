@@ -169,13 +169,13 @@ CREATE TABLE IF NOT EXISTS integrations (
 CREATE INDEX IF NOT EXISTS idx_products_store_id ON products(store_id);
 CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+CREATE UNIQUE INDEX IF NOT EXISTS products_store_sku_unique ON products (store_id, sku) WHERE sku IS NOT NULL AND sku <> '';
 CREATE INDEX IF NOT EXISTS idx_quote_requests_store_id ON quote_requests(store_id);
 CREATE INDEX IF NOT EXISTS idx_quote_requests_buyer_id ON quote_requests(buyer_user_id);
 
 -- ==========================================
 -- 4. ROW LEVEL SECURITY (RLS)
 -- ==========================================
-
 ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_owners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE buyer_users ENABLE ROW LEVEL SECURITY;
@@ -443,3 +443,91 @@ BEGIN
     RETURN v_result;
 END;
 $$;
+
+-- ==========================================
+-- 7. INTEGRATION EXTENSIONS (Phase 7)
+-- ==========================================
+
+-- Novo índice único para integrações
+CREATE UNIQUE INDEX IF NOT EXISTS integrations_store_provider_unique ON integrations (store_id, provider);
+
+-- Novo índice único para produtos sincronizados
+CREATE UNIQUE INDEX IF NOT EXISTS products_store_source_external_id_unique ON products (store_id, source, external_id) 
+WHERE external_id IS NOT NULL AND external_id <> '';
+
+-- Tabela para logs de sincronização
+CREATE TABLE IF NOT EXISTS integration_sync_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID REFERENCES stores(id) ON DELETE CASCADE,
+    integration_id UUID REFERENCES integrations(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TIMESTAMPTZ DEFAULT now(),
+    finished_at TIMESTAMPTZ,
+    products_found INTEGER DEFAULT 0,
+    products_created INTEGER DEFAULT 0,
+    products_updated INTEGER DEFAULT 0,
+    products_skipped INTEGER DEFAULT 0,
+    error_message TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT valid_status CHECK (status IN ('running', 'success', 'partial_success', 'error'))
+);
+
+-- Tabela para proteção de State OAuth
+CREATE TABLE IF NOT EXISTS integration_oauth_states (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID REFERENCES stores(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    state TEXT UNIQUE NOT NULL,
+    created_by UUID REFERENCES auth.users(id),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Habilitar RLS
+ALTER TABLE integration_sync_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE integration_oauth_states ENABLE ROW LEVEL SECURITY;
+
+-- Políticas RLS
+CREATE POLICY "Owners can manage their sync logs" ON integration_sync_logs
+    FOR ALL USING (is_store_owner(store_id));
+
+CREATE POLICY "Owners can manage their oauth states" ON integration_oauth_states
+    FOR ALL USING (is_store_owner(store_id));
+
+-- ==========================================
+-- 8. NUVEMSHOP INTEGRATION (Phase 8)
+-- ==========================================
+
+-- Índice único para Nuvemshop Store ID
+CREATE UNIQUE INDEX IF NOT EXISTS stores_nuvemshop_store_id_unique ON stores (nuvemshop_store_id) 
+WHERE nuvemshop_store_id IS NOT NULL AND nuvemshop_store_id <> '';
+
+-- Tabela para configurações do botão na vitrine
+CREATE TABLE IF NOT EXISTS storefront_quote_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID REFERENCES stores(id) ON DELETE CASCADE UNIQUE,
+    enabled BOOLEAN DEFAULT FALSE,
+    button_text TEXT DEFAULT 'Criar orçamento personalizado com IA',
+    button_subtitle TEXT,
+    button_position TEXT DEFAULT 'floating',
+    button_color TEXT,
+    show_on_home BOOLEAN DEFAULT TRUE,
+    show_on_product_pages BOOLEAN DEFAULT TRUE,
+    show_on_cart BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT valid_position CHECK (button_position IN ('floating', 'product_area', 'bottom_bar'))
+);
+
+-- Habilitar RLS
+ALTER TABLE storefront_quote_settings ENABLE ROW LEVEL SECURITY;
+
+-- Políticas RLS
+CREATE POLICY "Owners can manage their storefront settings" ON storefront_quote_settings
+    FOR ALL USING (is_store_owner(store_id));
+
+CREATE POLICY "Public can view active storefront settings" ON storefront_quote_settings
+    FOR SELECT USING (enabled = TRUE);

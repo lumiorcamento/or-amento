@@ -1,77 +1,200 @@
-import React, { useState } from 'react';
-import { useToast } from '@/components/ui/use-toast';
-
-function Toggle({ checked, onChange, label, description }) {
-    return (
-        <div className="flex items-start justify-between gap-4">
-            <div>
-                <p className="text-sm font-medium text-gray-800">{label}</p>
-                {description && <p className="text-xs text-gray-400 mt-0.5">{description}</p>}
-            </div>
-            <button onClick={() => onChange(!checked)}
-                className={`relative w-10 h-5 rounded-full shrink-0 transition-colors mt-0.5 ${checked ? 'bg-green-600' : 'bg-gray-300'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-5' : 'left-0.5'}`} />
-            </button>
-        </div>
-    );
-}
+import React, { useState, useEffect } from 'react';
+import { useStoreOwner } from '@/lib/StoreOwnerContext';
+import { storeService } from '@/services';
+import { Save, Loader2, Sparkles, AlertCircle,
+    MessageSquare, Target
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function StoreConfig() {
-    const { toast } = useToast();
-    const [config, setConfig] = useState({
-        tone: 'consultivo',
-        min_value: 0,
-        stock_priority: true,
-        margin_priority: false,
-        allow_no_login: true,
-        final_message: 'Obrigado pelo seu orçamento! Entraremos em contato em breve para confirmar disponibilidade e condições.',
-    });
+    const { currentStore } = useStoreOwner();
+    const [config, setConfig] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
-    function set(key, val) { setConfig(c => ({ ...c, [key]: val })); }
-    function save() { toast({ title: "Configurações salvas!", description: "O assistente foi atualizado." }); }
+    useEffect(() => {
+        if (currentStore) {
+            loadConfig();
+        }
+    }, [currentStore]);
+
+    async function loadConfig() {
+        setIsLoading(true);
+        try {
+            const data = await storeService.getStoreConfig(currentStore.id);
+            setConfig(data);
+        } catch (err) {
+            console.error(err);
+            toast.error("Erro ao carregar configurações.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    async function handleSave() {
+        setIsSaving(true);
+        try {
+            await storeService.updateStoreConfig(currentStore.id, config);
+            toast.success("Configurações salvas!");
+        } catch (err) {
+            console.error(err);
+            toast.error("Erro ao salvar configurações.");
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-green-700 animate-spin mb-4" />
+                <p className="text-gray-500 text-sm">Carregando configurações...</p>
+            </div>
+        );
+    }
 
     return (
-        <div>
-            <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Configurar assistente</h2>
-                <p className="text-sm text-gray-500">Personalize como a IA responde aos seus clientes.</p>
+        <div className="max-w-3xl mx-auto space-y-6 pb-20">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Configurar Assistente</h2>
+                    <p className="text-sm text-gray-500 mt-1">Ajuste como a IA deve se comportar com seus clientes.</p>
+                </div>
+                <button 
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="bg-green-700 hover:bg-green-800 text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg shadow-green-700/20 flex items-center gap-2 disabled:opacity-70"
+                >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Salvar alterações</>}
+                </button>
             </div>
 
-            <div className="max-w-xl space-y-4">
-                <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-                    <h3 className="font-semibold text-sm text-gray-700">Tom das respostas</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                        {['direto', 'consultivo', 'elegante', 'técnico', 'descontraído'].map(t => (
-                            <button key={t} onClick={() => set('tone', t)}
-                                className={`text-xs py-2 px-3 rounded-xl border font-medium capitalize transition-all ${config.tone === t ? 'bg-green-700 text-white border-green-700' : 'border-gray-200 text-gray-600 hover:border-green-400'}`}>
-                                {t.charAt(0).toUpperCase() + t.slice(1)}
-                            </button>
-                        ))}
+            <div className="grid grid-cols-1 gap-6">
+                {/* Personality */}
+                <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-700">
+                            <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900">Personalidade e Tom</h3>
+                            <p className="text-xs text-gray-500">Defina o estilo de comunicação da IA.</p>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-700 block mb-2 uppercase tracking-wider ml-1">Tom de voz</label>
+                            <select 
+                                value={config?.tone_voice || 'consultative'}
+                                onChange={e => setConfig(prev => ({ ...prev, tone_voice: e.target.value }))}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-green-600 transition-colors"
+                            >
+                                <option value="professional">Profissional e Direto</option>
+                                <option value="friendly">Amigável e Casual</option>
+                                <option value="consultative">Consultivo e Especialista</option>
+                                <option value="enthusiastic">Entusiasta e Vendedor</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-700 block mb-2 uppercase tracking-wider ml-1">Objetivo principal</label>
+                            <textarea 
+                                value={config?.ai_goal || ''}
+                                onChange={e => setConfig(prev => ({ ...prev, ai_goal: e.target.value }))}
+                                placeholder="Ex: Ajudar clientes a escolherem os melhores kits para presente, focando em sofisticação."
+                                rows={3}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-green-600 transition-colors resize-none"
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-                    <h3 className="font-semibold text-sm text-gray-700">Regras de recomendação</h3>
-                    <Toggle checked={config.stock_priority} onChange={v => set('stock_priority', v)} label="Priorizar produtos em estoque" description="Não mostrar produtos sem estoque" />
-                    <Toggle checked={config.margin_priority} onChange={v => set('margin_priority', v)} label="Priorizar maior margem" description="Preferir produtos com maior lucratividade" />
-                    <Toggle checked={config.allow_no_login} onChange={v => set('allow_no_login', v)} label="Permitir orçamento sem cadastro" description="Clientes podem usar o assistente sem criar conta" />
+                {/* Business Rules */}
+                <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-700">
+                            <Target className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900">Regras de Recomendação</h3>
+                            <p className="text-xs text-gray-500">Como a IA deve priorizar os produtos.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={config?.prioritize_stock || false}
+                                onChange={e => setConfig(prev => ({ ...prev, prioritize_stock: e.target.checked }))}
+                                className="w-5 h-5 rounded border-gray-300 text-green-700 focus:ring-green-600"
+                            />
+                            <div>
+                                <p className="text-sm font-bold text-gray-800">Priorizar Estoque</p>
+                                <p className="text-[10px] text-gray-500">Sugere produtos com mais itens.</p>
+                            </div>
+                        </label>
+                        <label className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={config?.prioritize_margin || false}
+                                onChange={e => setConfig(prev => ({ ...prev, prioritize_margin: e.target.checked }))}
+                                className="w-5 h-5 rounded border-gray-300 text-green-700 focus:ring-green-600"
+                            />
+                            <div>
+                                <p className="text-sm font-bold text-gray-800">Focar em Margem</p>
+                                <p className="text-[10px] text-gray-500">Sugere produtos mais rentáveis.</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div className="mt-6">
+                        <label className="text-xs font-bold text-gray-700 block mb-2 uppercase tracking-wider ml-1">Valor mínimo de orçamento</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">R$</span>
+                            <input 
+                                type="number"
+                                value={config?.min_order_value || 0}
+                                onChange={e => setConfig(prev => ({ ...prev, min_order_value: parseFloat(e.target.value) }))}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-green-600 transition-colors"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Final Message */}
+                <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-700">
+                            <MessageSquare className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900">Finalização</h3>
+                            <p className="text-xs text-gray-500">O que o cliente vê ao concluir.</p>
+                        </div>
+                    </div>
+
                     <div>
-                        <label className="text-xs font-semibold text-gray-500 block mb-1.5">Valor mínimo do orçamento (R$)</label>
-                        <input type="number" value={config.min_value} onChange={e => set('min_value', e.target.value)} placeholder="0 = sem mínimo"
-                            className="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-green-500" />
+                        <label className="text-xs font-bold text-gray-700 block mb-2 uppercase tracking-wider ml-1">Mensagem de encerramento</label>
+                        <textarea 
+                            value={config?.final_message || ''}
+                            onChange={e => setConfig(prev => ({ ...prev, final_message: e.target.value }))}
+                            placeholder="Ex: Obrigado por escolher a nossa loja! Entraremos em contato em breve."
+                            rows={3}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-green-600 transition-colors resize-none"
+                        />
                     </div>
                 </div>
-
-                <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                    <h3 className="font-semibold text-sm text-gray-700 mb-3">Mensagem final para o cliente</h3>
-                    <textarea value={config.final_message} onChange={e => set('final_message', e.target.value)} rows={3}
-                        className="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-green-500 resize-none" />
-                    <p className="text-xs text-gray-400 mt-1.5">Esta mensagem é exibida para o cliente após enviar o orçamento.</p>
+            </div>
+            
+            <div className="bg-amber-50 border border-amber-100 rounded-3xl p-6 flex items-start gap-4">
+                <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+                <div>
+                    <p className="text-sm font-bold text-amber-800">Personalização Ativa</p>
+                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                        Estas configurações são aplicadas imediatamente ao assistente da sua loja. Lembre-se que a IA também usa o histórico individual de cada comprador para refinar as sugestões.
+                    </p>
                 </div>
-
-                <button onClick={save} className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold text-sm px-5 py-3 rounded-xl transition-colors">
-                    Salvar configurações
-                </button>
             </div>
         </div>
     );

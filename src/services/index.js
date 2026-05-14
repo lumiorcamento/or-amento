@@ -4,3 +4,4 @@ export * from './productService';
 export * from './quoteService';
 export * from './recommendationService';
 export * from './authService';
+export * from './storeOwnerAuthService';
