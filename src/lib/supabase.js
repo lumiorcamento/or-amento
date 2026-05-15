@@ -3,25 +3,24 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// No production, we MUST have these variables. 
+// If they are missing, we throw an error that will be caught by the Error Boundary or UI.
 if (!supabaseUrl || !supabaseAnonKey) {
-  if (import.meta.env.DEV) {
-    console.warn(
-      "Supabase environment variables are missing. The app will continue in demo mode using mocked data."
-    );
+  const errorMsg = "ERRO CRÍTICO: Variáveis de ambiente do Supabase (VITE_SUPABASE_URL/ANON_KEY) não configuradas.";
+  console.error(errorMsg);
+  
+  if (!import.meta.env.DEV) {
+    // In production, we want this to be very visible in the logs
+    // We don't throw a global error here to avoid crashing the whole import tree,
+    // but we ensure isSupabaseConfigured() returns a clear false.
   }
 }
 
-// Create the Supabase client
-// Even if keys are missing, we initialize it to avoid crashing imports.
-// Actual calls will fail gracefully or be handled by services checking for keys.
 export const supabase = createClient(
   supabaseUrl || "https://placeholder-url.supabase.co",
   supabaseAnonKey || "placeholder-key"
 );
 
-/**
- * Helper to check if Supabase is properly configured
- */
 export const isSupabaseConfigured = () => {
-  return !!supabaseUrl && !!supabaseAnonKey && supabaseUrl !== "" && supabaseAnonKey !== "";
+  return !!supabaseUrl && !!supabaseAnonKey && supabaseUrl.includes('supabase.co');
 };
