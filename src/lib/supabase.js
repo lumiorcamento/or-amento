@@ -3,6 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Diagnóstico de URL (Ofuscada)
+if (supabaseUrl) {
+  const maskedUrl = supabaseUrl.replace(/(https:\/\/\w{4}).*(\..*)/, "$1***$2");
+  console.log(`[Supabase] Conectando em: ${maskedUrl}`);
+} else {
+  console.error("[Supabase] VITE_SUPABASE_URL não encontrada!");
+}
+
 // No production, we MUST have these variables. 
 // If they are missing, we throw an error that will be caught by the Error Boundary or UI.
 if (!supabaseUrl || !supabaseAnonKey) {
