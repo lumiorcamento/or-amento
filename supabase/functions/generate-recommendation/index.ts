@@ -61,7 +61,18 @@ serve(async (req) => {
       .eq('active', true)
       .gt('stock_quantity', 0)
 
-    if (prodError || !allProducts) throw new Error('Erro ao buscar produtos')
+    if (prodError || !allProducts) throw new Error('Erro ao buscar produtos');
+    
+    if (allProducts.length === 0) {
+      return new Response(JSON.stringify({ 
+        error: 'Nenhum produto disponível nesta loja.',
+        code: 'NO_PRODUCTS',
+        items: [] 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
     // 3.4 History (Last 5 quotes)
     const { data: history } = await supabaseClient
@@ -85,6 +96,10 @@ serve(async (req) => {
       refinement,
       quoteStyle
     })
+
+    if (!recommendation || recommendation.error) {
+       throw new Error(recommendation?.error || 'Falha ao gerar recomendações');
+    }
 
     // 6. Final Validation & Enrichment
     const validatedResult = validateAndEnrichResult(recommendation, allProducts)
