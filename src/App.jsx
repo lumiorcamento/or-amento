@@ -44,11 +44,10 @@ const AuthenticatedApp = () => {
         );
     }
 
-    if (authError) {
-        if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
-        if (authError.type === 'auth_required') { navigateToLogin(); return null; }
-    }
-
+    // We no longer block the entire app if Base44 auth fails, 
+    // as we are moving towards a Supabase-first architecture.
+    // The StoreOwnerProtectedRoute and StoreProvider will handle their own auth.
+    
     return (
         <Routes>
             {/* Redirect root to demo store */}
