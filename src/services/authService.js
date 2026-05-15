@@ -9,14 +9,20 @@ export const authService = {
    * Signs up a new buyer and creates their profile
    */
   async signUpBuyer({ name, email, phone, password, storeId, consentToPersonalization }) {
+    const trimmedEmail = email?.trim();
+    const trimmedPassword = password;
+
+    if (!trimmedEmail) throw new Error("E-mail é obrigatório.");
+    if (!trimmedPassword) throw new Error("Senha é obrigatória.");
+
     // 1. Create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
+      email: trimmedEmail,
+      password: trimmedPassword,
       options: {
         data: {
-          full_name: name,
-          phone: phone,
+          full_name: name?.trim(),
+          phone: phone?.trim() || undefined,
         }
       }
     });
