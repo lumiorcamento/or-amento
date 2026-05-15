@@ -10,12 +10,12 @@ export function BuyerProvider({ children }) {
     const [buyerProfile, setBuyerProfile] = useState(null);
     const [isLoadingBuyer, setIsLoadingBuyer] = useState(true);
     const [isBuyerAuthenticated, setIsBuyerAuthenticated] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
     const loadingRef = useRef(false);
 
     const loadBuyerData = useCallback(async (authUser) => {
         if (loadingRef.current) return;
         loadingRef.current = true;
-        setIsLoadingBuyer(true);
         
         try {
             if (!authUser) {
@@ -35,18 +35,18 @@ export function BuyerProvider({ children }) {
             setBuyer(bUser);
             setIsBuyerAuthenticated(true);
         } catch (err) {
-            console.error("[BuyerContext] Error loading buyer data:", err);
-            // Even on error, we mark as not authenticated but stop loading
+            console.error("[BuyerContext] Critical: Profile load failed", err);
+            // We set authenticated to false so the public page can still work
             setIsBuyerAuthenticated(false);
         } finally {
             setIsLoadingBuyer(false);
+            setIsInitialized(true);
             loadingRef.current = false;
         }
     }, []);
 
     const refreshBuyerProfile = useCallback(async (storeId) => {
         if (!buyer || !storeId || !isSupabaseConfigured()) return;
-        
         try {
             const profile = await buyerService.getBuyerStoreProfile({
                 storeId,
@@ -54,52 +54,56 @@ export function BuyerProvider({ children }) {
             });
             setBuyerProfile(profile);
         } catch (err) {
-            console.error("[BuyerContext] Error refreshing buyer profile:", err);
+            console.error("[BuyerContext] Profile refresh failed", err);
         }
     }, [buyer]);
 
-    // Initial load and subscription
     useEffect(() => {
         if (!isSupabaseConfigured()) {
             setBuyer(DEMO_BUYERS[0]);
             setIsBuyerAuthenticated(true);
             setIsLoadingBuyer(false);
+            setIsInitialized(true);
             return;
         }
 
         let mounted = true;
 
-        const checkAuth = async () => {
+        const checkInitialSession = async () => {
             try {
+                // Get session once
                 const session = await authService.getCurrentSession();
                 if (!mounted) return;
 
                 if (session?.user) {
                     await loadBuyerData(session.user);
                 } else {
-                    setBuyer(null);
-                    setBuyerProfile(null);
-                    setIsBuyerAuthenticated(false);
                     setIsLoadingBuyer(false);
+                    setIsInitialized(true);
                 }
             } catch (err) {
-                console.error("[BuyerContext] Auth check failed:", err);
-                if (mounted) setIsLoadingBuyer(false);
+                console.error("[BuyerContext] Initial session check failed", err);
+                if (mounted) {
+                    setIsLoadingBuyer(false);
+                    setIsInitialized(true);
+                }
             }
         };
 
-        checkAuth();
+        checkInitialSession();
 
+        // Subscription for subsequent changes
         const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
             if (!mounted) return;
             
-            if (session?.user) {
+            if (event === 'SIGNED_IN' && session?.user) {
                 await loadBuyerData(session.user);
-            } else {
+            } else if (event === 'SIGNED_OUT') {
                 setBuyer(null);
                 setBuyerProfile(null);
                 setIsBuyerAuthenticated(false);
                 setIsLoadingBuyer(false);
+                setIsInitialized(true);
             }
         });
 
@@ -109,32 +113,20 @@ export function BuyerProvider({ children }) {
         };
     }, [loadBuyerData]);
 
-    const signIn = async (email, password) => {
-        return await authService.signInBuyer({ email, password });
-    };
-
-    const signUp = async (data) => {
-        return await authService.signUpBuyer(data);
-    };
-
-    const signOut = async () => {
-        if (isSupabaseConfigured()) {
-            await authService.signOutBuyer();
-        } else {
-            setBuyer(null);
-            setIsBuyerAuthenticated(false);
-        }
-    };
-
     return (
         <BuyerContext.Provider value={{ 
             buyer, 
             buyerProfile, 
             isBuyerAuthenticated, 
             isLoadingBuyer, 
-            signIn, 
-            signUp, 
-            signOut,
+            isInitialized,
+            signIn: authService.signInBuyer, 
+            signUp: authService.signUpBuyer, 
+            signOut: async () => {
+                await authService.signOutBuyer();
+                setBuyer(null);
+                setIsBuyerAuthenticated(false);
+            },
             refreshBuyerProfile 
         }}>
             {children}
@@ -144,8 +136,6 @@ export function BuyerProvider({ children }) {
 
 export function useBuyer() {
     const context = useContext(BuyerContext);
-    if (!context) {
-        throw new Error('useBuyer must be used within a BuyerProvider');
-    }
+    if (!context) throw new Error('useBuyer must be used within a BuyerProvider');
     return context;
 }

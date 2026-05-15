@@ -9,8 +9,14 @@ export const storeService = {
    * Fetches a store by its slug
    */
   async getStoreBySlug(slug) {
+    // Only allow demo fallback if specifically requested via slug or if in DEV without config
+    const isDemoSlug = slug === 'loja-demonstracao';
+    
     if (!isSupabaseConfigured()) {
-      return this.getDemoStoreFallback();
+      if (isDemoSlug || import.meta.env.DEV) {
+        return this.getDemoStoreFallback();
+      }
+      throw new Error("Configuração do banco de dados ausente.");
     }
 
     try {
@@ -20,17 +26,20 @@ export const storeService = {
         .eq('slug', slug)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found is handled by UI
+        throw error;
+      }
+      
       return data;
     } catch (error) {
-      console.error(`Error fetching store by slug (${slug}):`, error);
-      return this.getDemoStoreFallback();
+      console.error(`[storeService] Error fetching store (${slug}):`, error);
+      // In production, we don't fallback to demo automatically if Supabase fails
+      if (isDemoSlug) return this.getDemoStoreFallback();
+      throw error;
     }
   },
 
-  /**
-   * Returns demo store data as fallback
-   */
   getDemoStoreFallback() {
     return DEMO_STORE;
   }
