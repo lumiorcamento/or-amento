@@ -8,12 +8,15 @@ export const authService = {
   /**
    * Signs up a new buyer and creates their profile
    */
-  async signUpBuyer({ name, email, phone, password, storeId, consentToPersonalization }) {
+  async signUpBuyer(data) {
+    const { name, email, phone, password } = data;
+    console.log("[authService] signUpBuyer attempt:", { email, hasPassword: !!password });
+    
     const trimmedEmail = email?.trim();
     const trimmedPassword = password;
 
-    if (!trimmedEmail) throw new Error("E-mail é obrigatório.");
-    if (!trimmedPassword) throw new Error("Senha é obrigatória.");
+    if (!trimmedEmail) throw new Error("DEBUG: E-mail não fornecido para o authService.");
+    if (!trimmedPassword) throw new Error("DEBUG: Senha não fornecida para o authService.");
 
     // 1. Create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -63,8 +66,12 @@ export const authService = {
    * Signs in a buyer
    */
   async signInBuyer({ email, password }) {
+    console.log("[authService] signInBuyer attempt:", { email });
+    const trimmedEmail = email?.trim();
+    if (!trimmedEmail) throw new Error("DEBUG: E-mail não fornecido para Login.");
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: trimmedEmail,
       password
     });
 
