@@ -26,24 +26,31 @@ export const authService = {
     const user = authData.user;
     if (!user) throw new Error("Falha ao criar usuário.");
 
-    // 2. Create buyer_user record
-    const buyerUser = await buyerService.getOrCreateBuyerProfile({
-      userId: user.id,
-      name,
-      email,
-      phone
-    });
+    // 2. Create buyer_user record (Optional/Resilient)
+    // We wrap this in try-catch because the database trigger might handle it
+    // or the RLS might have a slight delay in recognizing the new session.
+    try {
+      const buyerUser = await buyerService.getOrCreateBuyerProfile({
+        userId: user.id,
+        name,
+        email,
+        phone
+      });
 
-    // 3. Create buyer_store_profile
-    await buyerService.updateBuyerPreferences({
-      storeId,
-      buyerUserId: buyerUser.id,
-      preferences: {
-        consent_to_personalization: consentToPersonalization
-      }
-    });
+      // 3. Create buyer_store_profile
+      await buyerService.updateBuyerPreferences({
+        storeId,
+        buyerUserId: buyerUser.id,
+        preferences: {
+          consent_to_personalization: consentToPersonalization
+        }
+      });
+    } catch (profileError) {
+      console.warn("[authService] Non-critical error creating profile during signup:", profileError);
+      // We don't throw here. The BuyerContext will handle profile creation/sync on next load.
+    }
 
-    return { user, buyerUser };
+    return { user };
   },
 
   /**
