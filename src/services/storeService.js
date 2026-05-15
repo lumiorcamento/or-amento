@@ -27,11 +27,13 @@ export const storeService = {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') return null; // Not found is handled by UI
+        if (error.code === 'PGRST116') {
+          return isDemoSlug ? this.getDemoStoreFallback() : null;
+        }
         throw error;
       }
       
-      return data;
+      return data || (isDemoSlug ? this.getDemoStoreFallback() : null);
     } catch (error) {
       console.error(`[storeService] Error fetching store (${slug}):`, error);
       // In production, we don't fallback to demo automatically if Supabase fails
