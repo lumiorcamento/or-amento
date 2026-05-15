@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { authService, buyerService } from '@/services';
+import { authService } from '../services/authService';
+import { buyerService } from '../services/buyerService';
 import { isSupabaseConfigured } from './supabase';
 import { DEMO_BUYERS } from './buyerData';
 
@@ -120,8 +121,14 @@ export function BuyerProvider({ children }) {
             isBuyerAuthenticated, 
             isLoadingBuyer, 
             isInitialized,
-            signIn: authService.signInBuyer, 
-            signUp: authService.signUpBuyer, 
+            signIn: async (email, password) => {
+                console.log("[BuyerContext] signIn attempt for:", email);
+                return await authService.signInBuyer({ email, password });
+            }, 
+            signUp: async (data) => {
+                console.log("[BuyerContext] signUp attempt for:", data?.email);
+                return await authService.signUpBuyer(data);
+            }, 
             signOut: async () => {
                 await authService.signOutBuyer();
                 setBuyer(null);
