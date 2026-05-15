@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { storeService } from '@/services/storeService';
 
@@ -9,28 +9,36 @@ export function StoreProvider({ children }) {
     const [store, setStore] = useState(null);
     const [isLoadingStore, setIsLoadingStore] = useState(true);
     const [storeError, setStoreError] = useState(null);
-    const navigate = useNavigate();
+    const loadingRef = useRef(null);
 
     useEffect(() => {
+        // Prevent re-loading the same slug if already loading or loaded
+        if (loadingRef.current === storeSlug) return;
+
         async function loadStore() {
             if (!storeSlug) {
-                // If no slug, we might be at "/" - redirection handled in App.jsx
+                console.warn("[StoreContext] No store slug provided");
                 setIsLoadingStore(false);
                 return;
             }
 
             try {
+                loadingRef.current = storeSlug;
                 setIsLoadingStore(true);
+                setStoreError(null);
+                
                 const data = await storeService.getStoreBySlug(storeSlug);
                 
                 if (!data) {
+                    console.error(`[StoreContext] Store not found: ${storeSlug}`);
                     setStoreError('Loja não encontrada');
+                    setStore(null);
                 } else {
                     setStore(data);
                 }
             } catch (err) {
-                console.error("Error loading store:", err);
-                setStoreError('Erro ao carregar loja');
+                console.error(`[StoreContext] Error loading store (${storeSlug}):`, err);
+                setStoreError('Erro ao carregar os dados da loja');
             } finally {
                 setIsLoadingStore(false);
             }

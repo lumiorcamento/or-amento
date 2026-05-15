@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, LogOut, Clock, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, LogOut, Clock, User, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useBuyer } from '@/lib/BuyerContext';
 import { useStore } from '@/lib/StoreContext';
 import { Link, useParams } from 'react-router-dom';
@@ -24,9 +24,11 @@ export default function QuoteAssistant() {
     const [recommendation, setRecommendation] = useState(null);
     const [items, setItems] = useState([]);
     const [products, setProducts] = useState([]);
+    const [isLoadingProducts, setIsLoadingProducts] = useState(true);
     const [contact, setContact] = useState({ name: '', contact: '', company: '', notes: '', consent: false });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [savedQuoteData, setSavedQuoteData] = useState(null);
+    const [safetyTimeoutTriggered, setSafetyTimeoutTriggered] = useState(false);
     
     const [initialPrompt, setInitialPrompt] = useState(() => {
         const saved = sessionStorage.getItem('lumi_initial_prompt');
@@ -34,25 +36,63 @@ export default function QuoteAssistant() {
         return '';
     });
 
+    // Safety Timeout for initial loading
+    useEffect(() => {
+        if (isLoadingStore || isLoadingBuyer) {
+            const timer = setTimeout(() => {
+                console.warn("[QuoteAssistant] Safety timeout triggered after 12s");
+                setSafetyTimeoutTriggered(true);
+            }, 12000);
+            return () => clearTimeout(timer);
+        } else {
+            setSafetyTimeoutTriggered(false);
+        }
+    }, [isLoadingStore, isLoadingBuyer]);
+
     // Load store products
     useEffect(() => {
         async function loadProducts() {
             if (store) {
                 try {
+                    setIsLoadingProducts(true);
                     const data = await productService.getActiveProductsByStore(store.id);
-                    setProducts(data);
+                    setProducts(data || []);
                     if (isBuyerAuthenticated) {
                         refreshBuyerProfile(store.id);
                     }
                 } catch (err) {
-                    console.error("Error loading products:", err);
+                    console.error("[QuoteAssistant] Error loading products:", err);
+                } finally {
+                    setIsLoadingProducts(false);
                 }
             }
         }
         loadProducts();
-    }, [store, isBuyerAuthenticated]);
+    }, [store, isBuyerAuthenticated, refreshBuyerProfile]);
 
-    // Loading states
+    // Safety Timeout Screen
+    if (safetyTimeoutTriggered && (isLoadingStore || isLoadingBuyer)) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 px-6 text-center">
+                <div className="max-w-sm">
+                    <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <h1 className="text-lg font-bold text-gray-900 mb-2">O carregamento está demorando mais que o esperado</h1>
+                    <p className="text-sm text-gray-500 mb-6">Pode haver um problema de conexão. Tente recarregar a página.</p>
+                    <button 
+                        onClick={() => window.location.reload()} 
+                        className="flex items-center gap-2 mx-auto bg-green-700 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-800 transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Recarregar página
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Initial Loading states
     if (isLoadingStore || isLoadingBuyer) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -73,7 +113,7 @@ export default function QuoteAssistant() {
                         <AlertCircle className="w-6 h-6 text-red-600" />
                     </div>
                     <h1 className="text-lg font-bold text-gray-900 mb-2">{storeError || 'Loja não encontrada'}</h1>
-                    <p className="text-sm text-gray-500 mb-6">Verifique o endereço digitado ou entre em contato com o suporte.</p>
+                    <p className="text-sm text-gray-500 mb-6">Verifique o endereço digitado ou entre em contato com o lojista.</p>
                     <Link to="/" className="text-sm font-semibold text-green-700 hover:text-green-800">Voltar ao início</Link>
                 </div>
             </div>
@@ -94,6 +134,10 @@ export default function QuoteAssistant() {
     const stepIndex = { input: 0, loading: 0, results: 1, review: 2, contact: 3, success: 3 }[step] ?? 0;
 
     async function handleGenerate(text) {
+        if (products.length === 0) {
+            toast.error("Esta loja ainda não sincronizou o catálogo de produtos.");
+            return;
+        }
         setPrompt(text);
         setStep('loading');
     }
@@ -106,11 +150,18 @@ export default function QuoteAssistant() {
                 buyerProfile: { ...buyer, profile: buyerProfile },
                 mode: 'recommended'
             });
+
+            if (!result || !result.items || result.items.length === 0) {
+                toast.error("Não encontramos produtos correspondentes ao seu pedido.");
+                setStep('input');
+                return;
+            }
+
             setRecommendation(result);
             setItems(result.items.map(p => ({ ...p, quantity: p.quantity || 1 })));
             setStep('results');
         } catch (err) {
-            console.error("Recommendation error:", err);
+            console.error("[QuoteAssistant] Recommendation error:", err);
             toast.error("Erro ao gerar recomendações. Tente um pedido mais simples.");
             setStep('input');
         }
@@ -142,7 +193,7 @@ export default function QuoteAssistant() {
             setStep('success');
             toast.success("Orçamento enviado com sucesso!");
         } catch (err) {
-            console.error("Submission error:", err);
+            console.error("[QuoteAssistant] Submission error:", err);
             toast.error("Não conseguimos enviar seu orçamento agora. Tente novamente.");
         } finally {
             setIsSubmitting(false);
@@ -167,7 +218,7 @@ export default function QuoteAssistant() {
             {/* Store header */}
             <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: store.primary_color || store.primaryColor }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: store.primary_color || store.primaryColor || '#059669' }}>
                         {store.logo_url ? (
                             <img src={store.logo_url} alt={store.name} className="w-full h-full object-contain rounded-lg" />
                         ) : (
@@ -219,11 +270,25 @@ export default function QuoteAssistant() {
 
             {/* Main content */}
             <main className="flex-1 overflow-auto">
+                {products.length === 0 && !isLoadingProducts && step === 'input' && (
+                    <div className="max-w-2xl mx-auto mt-8 px-6">
+                        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 text-center">
+                            <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+                            <h3 className="text-amber-900 font-bold mb-1">Catálogo em sincronização</h3>
+                            <p className="text-amber-800 text-sm">
+                                Esta loja ainda não possui produtos sincronizados do Bling. 
+                                Se você é o lojista, conecte o seu ERP no painel administrativo.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {step === 'input' && (
                     <StepInput
                         onGenerate={handleGenerate}
                         buyer={buyer}
                         initialPrompt={initialPrompt}
+                        disabled={products.length === 0}
                     />
                 )}
                 {step === 'loading' && (
