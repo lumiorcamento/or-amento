@@ -20,13 +20,27 @@ export const storeService = {
     }
 
     try {
-      const { data, error } = await supabase
+      console.log(`[storeService] Buscando loja: ${slug}...`);
+      
+      // Criar uma promessa de timeout de 8 segundos
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout de conexão com Supabase (8s)")), 8000)
+      );
+
+      const fetchPromise = supabase
         .from('stores')
         .select('*')
         .eq('slug', slug)
         .single();
 
+      // Correr contra o timeout
+      const { data, error } = await Promise.race([
+        fetchPromise.then(res => res),
+        timeoutPromise
+      ]).catch(err => ({ data: null, error: err }));
+
       if (error) {
+        console.error(`[storeService] Erro Supabase para slug ${slug}:`, error);
         if (error.code === 'PGRST116') {
           return isDemoSlug ? this.getDemoStoreFallback() : null;
         }
